@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ROMCODE Encoder v0.3</title>
+    <title>ROMCODE Encoder v0.4</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -39,11 +39,6 @@
             border-radius: 5px;
             font-size: 16px;
         }
-        .greyed-out {
-            background-color: #f0f0f0;
-            color: #666;
-            border: 2px solid #ccc;
-        }
         #message {
             flex: 1;
             min-width: 150px;
@@ -51,6 +46,9 @@
         #alignmentWord {
             width: 100px;
             text-transform: uppercase;
+        }
+        .keyboard-select {
+            width: 120px;
         }
         button {
             background-color: #4CAF50;
@@ -87,11 +85,27 @@
 </head>
 <body>
     <div class="container">
-        <h1>🔐 ROMCODE Encoder v0.3</h1>
+        <h1>🔐 ROMCODE Encoder v0.4</h1>
        
         <div class="romcode-input">
             <span>ROMCODE = {</span>
-            <input type="text" value="ABC-QWE" class="greyed-out" readonly style="width: 80px;">
+            <select id="keyboard1" class="keyboard-select">
+                <option value="ABCDEFGHIJKLMNOPQRSTUVWXYZ">ABC</option>
+                <option value="QWERTYUIOPASDFGHJKLZXCVBNM" selected>QWERTY</option>
+                <option value="AZERTYUIOPQSDFGHJKLMWXCVBN">AZERTY</option>
+                <option value="QWERTZUIOPASDFGHJKLYXCVBNM">QWERTZ</option>
+                <option value="PYFGCRLAOEUIDHTNSQJKXBMWVZ">DVORAK</option>
+                <option value="QWFPGJLUYARSTDHNEIOZXCVBKM">COLEMAK</option>
+            </select>
+            <span>-</span>
+            <select id="keyboard2" class="keyboard-select">
+                <option value="ABCDEFGHIJKLMNOPQRSTUVWXYZ">ABC</option>
+                <option value="QWERTYUIOPASDFGHJKLZXCVBNM" selected>QWERTY</option>
+                <option value="AZERTYUIOPQSDFGHJKLMWXCVBN">AZERTY</option>
+                <option value="QWERTZUIOPASDFGHJKLYXCVBNM">QWERTZ</option>
+                <option value="PYFGCRLAOEUIDHTNSQJKXBMWVZ">DVORAK</option>
+                <option value="QWFPGJLUYARSTDHNEIOZXCVBKM">COLEMAK</option>
+            </select>
             <span>;</span>
             <select id="direction" style="width: 60px;">
                 <option value=">">></option>
@@ -121,29 +135,35 @@
     </div>
 
     <script>
-        const QWE = "QWERTYUIOPASDFGHJKLZXCVBNM";
-        const ABC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const KEYBOARD_LAYOUTS = {
+            'ABC': 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+            'QWERTY': 'QWERTYUIOPASDFGHJKLZXCVBNM',
+            'AZERTY': 'AZERTYUIOPQSDFGHJKLMWXCVBN',
+            'QWERTZ': 'QWERTZUIOPASDFGHJKLYXCVBNM',
+            'DVORAK': 'PYFGCRLAOEUIDHTNSQJKXBMWVZ',
+            'COLEMAK': 'QWFPGJLUYARSTDHNEIOZXCVBKM'
+        };
 
-        function getCurrentAlignment(shiftPosition) {
+        function getCurrentAlignment(shiftPosition, keyboard1, keyboard2) {
             let mapping = {};
-            for (let i = 0; i < ABC.length; i++) {
-                const abcChar = ABC[i];
-                const qweIndex = (i + shiftPosition) % QWE.length;
-                const qweChar = QWE[qweIndex];
-                mapping[abcChar] = qweChar;
-                mapping[abcChar.toLowerCase()] = qweChar.toLowerCase();
+            for (let i = 0; i < keyboard1.length; i++) {
+                const kb1Char = keyboard1[i];
+                const kb2Index = (i + shiftPosition) % keyboard2.length;
+                const kb2Char = keyboard2[kb2Index];
+                mapping[kb1Char] = kb2Char;
+                mapping[kb1Char.toLowerCase()] = kb2Char.toLowerCase();
             }
             return mapping;
         }
 
-        function getCurrentDecodeMapping(shiftPosition) {
+        function getCurrentDecodeMapping(shiftPosition, keyboard1, keyboard2) {
             let mapping = {};
-            for (let i = 0; i < ABC.length; i++) {
-                const abcChar = ABC[i];
-                const qweIndex = (i + shiftPosition) % QWE.length;
-                const qweChar = QWE[qweIndex];
-                mapping[qweChar] = abcChar;
-                mapping[qweChar.toLowerCase()] = abcChar.toLowerCase();
+            for (let i = 0; i < keyboard1.length; i++) {
+                const kb1Char = keyboard1[i];
+                const kb2Index = (i + shiftPosition) % keyboard2.length;
+                const kb2Char = keyboard2[kb2Index];
+                mapping[kb2Char] = kb1Char;
+                mapping[kb2Char.toLowerCase()] = kb1Char.toLowerCase();
             }
             return mapping;
         }
@@ -153,6 +173,10 @@
             const direction = document.getElementById('direction').value;
             const mode = document.getElementById('mode').value;
             const alignmentWord = document.getElementById('alignmentWord').value.toUpperCase();
+            const keyboard1 = document.getElementById('keyboard1').value;
+            const keyboard2 = document.getElementById('keyboard2').value;
+            const keyboard1Name = document.getElementById('keyboard1').options[document.getElementById('keyboard1').selectedIndex].text;
+            const keyboard2Name = document.getElementById('keyboard2').options[document.getElementById('keyboard2').selectedIndex].text;
             
             if (!message) {
                 alert('Masukkan pesan terlebih dahulu!');
@@ -164,28 +188,27 @@
                 return;
             }
 
-            // Validate alignment word contains only A-Z
             if (!/^[A-Z]+$/.test(alignmentWord)) {
                 alert('Alignment word hanya boleh mengandung huruf A-Z!');
                 return;
             }
 
             const SHIFT_COUNT = alignmentWord.length;
-            const firstChar = alignmentWord[0]; // First letter for ABC paper
-            const secondChar = alignmentWord[1]; // Second letter for QWE paper
+            const firstChar = alignmentWord[0]; // First letter for keyboard1 (bottom)
+            const secondChar = alignmentWord[1]; // Second letter for keyboard2 (top)
 
             let result = '';
             
-            // Initial alignment: firstChar (ABC) ↔ secondChar (QWE)
-            const firstCharIndexABC = ABC.indexOf(firstChar);
-            const secondCharIndexQWE = QWE.indexOf(secondChar);
+            // Initial alignment: firstChar (keyboard1) ↔ secondChar (keyboard2)
+            const firstCharIndexKB1 = keyboard1.indexOf(firstChar);
+            const secondCharIndexKB2 = keyboard2.indexOf(secondChar);
             
-            if (firstCharIndexABC === -1 || secondCharIndexQWE === -1) {
-                alert('Huruf alignment tidak valid!');
+            if (firstCharIndexKB1 === -1 || secondCharIndexKB2 === -1) {
+                alert('Huruf alignment tidak valid untuk keyboard yang dipilih!');
                 return;
             }
 
-            let currentShift = (secondCharIndexQWE - firstCharIndexABC + QWE.length) % QWE.length;
+            let currentShift = (secondCharIndexKB2 - firstCharIndexKB1 + keyboard2.length) % keyboard2.length;
 
             for (let i = 0; i < message.length; i++) {
                 const char = message[i];
@@ -193,17 +216,17 @@
                 if (char === ' ') {
                     result += ' ';
                 } else {
-                    if (mode === 'DE') { // Encode plain text
-                        if (ABC.includes(char)) {
-                            const mapping = getCurrentAlignment(currentShift);
+                    if (mode === 'DE') { // Encode plain text (keyboard1 → keyboard2)
+                        if (keyboard1.includes(char)) {
+                            const mapping = getCurrentAlignment(currentShift, keyboard1, keyboard2);
                             const encodedChar = mapping[char];
                             result += encodedChar;
                         } else {
                             result += char;
                         }
-                    } else { // EN mode - Decode encoded text
-                        if (QWE.includes(char)) {
-                            const mapping = getCurrentDecodeMapping(currentShift);
+                    } else { // EN mode - Decode encoded text (keyboard2 → keyboard1)
+                        if (keyboard2.includes(char)) {
+                            const mapping = getCurrentDecodeMapping(currentShift, keyboard1, keyboard2);
                             const decodedChar = mapping[char];
                             result += decodedChar;
                         } else {
@@ -213,15 +236,15 @@
                     
                     // Apply shift for next character
                     if (direction === '>') {
-                        currentShift = (currentShift + SHIFT_COUNT) % QWE.length;
+                        currentShift = (currentShift + SHIFT_COUNT) % keyboard2.length;
                     } else { // <
-                        currentShift = (currentShift - SHIFT_COUNT + QWE.length) % QWE.length;
+                        currentShift = (currentShift - SHIFT_COUNT + keyboard2.length) % keyboard2.length;
                     }
                 }
             }
 
             // Output in same ROMCODE format with the processed message
-            const romcodeOutput = `ROMCODE = {ABC-QWE;${direction};${mode};${alignmentWord};${result.replace(/ /g, '')}}`;
+            const romcodeOutput = `ROMCODE = {${keyboard1Name}-${keyboard2Name};${direction};${mode};${alignmentWord};${result.replace(/ /g, '')}}`;
             document.getElementById('output').textContent = romcodeOutput;
         }
 
